@@ -3,7 +3,7 @@ import java.time.format.DateTimeFormatter;
 
 // Registro de UN acontecimiento del recorrido de un envío.
 //
-// Cada atributo está porque el problema lo pide para reconstruir lo ocurrido:
+// atributos:
 //   - tipo:    ¿qué pasó?        (RECIBIDO / DESPACHADO / ENTREGADO)
 //   - fecha:   ¿cuándo pasó?     (se toma sola, en el momento de crear el registro)
 //   - sucursal ¿dónde pasó?      (null solo si el envío fue entregado en su destino

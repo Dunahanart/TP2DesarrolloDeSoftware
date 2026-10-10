@@ -6,8 +6,7 @@ import java.util.NoSuchElementException;
 //
 // Responsabilidad: registrar y CONSULTAR múltiples envíos, y calcular
 // información general sobre todos ellos. Centralizar esto acá evita que App
-// tenga que guardar listas y recorrerlas buscando cosas (que era una de las
-// críticas del enunciado).
+// tenga que guardar listas y recorrerlas buscando cosas.
 //
 // Ojo: NO administra los envíos del cliente — eso le corresponde al Cliente
 // (ver Cliente.registrarEnvio). Acá solo queda el "mapa" del sistema completo.
@@ -37,8 +36,7 @@ public class GestorEnvios {
             + envio.getCliente().getNombre() + ".");
     }
 
-    // Operar sobre un envío inexistente debe FALLAR con un mensaje claro, no
-    // devolver null y esperar lo mejor.
+    // Operar sobre un envío inexistente debe FALLAR con un mensaje claro.
     public Envio buscarPorId(int id) {
         for (Envio envio : envios) {
             if (envio.getId() == id) {

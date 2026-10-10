@@ -4,8 +4,8 @@ import java.util.List;
 // Lugar físico donde se procesan envíos: un envío comienza su recorrido en una
 // sucursal y puede pasar por otras antes de llegar a su destino.
 //
-// Responsabilidad de la sucursal: decidir QUÉ envíos procesa (recibe y
-// despacha), y llevar el control de los que tiene en curso. NO es responsable
+// Responsabilidad de la sucursal: decidir qué envíos procesa (recibe y
+// despacha), y llevar el control de los que tiene en curso. No es responsable
 // de cómo cambia el estado de los paquetes: para eso le manda un mensaje al
 // envío, que es quien coordina a sus paquetes (Colaboración:
 // App -> Sucursal -> Envio -> Paquete).
@@ -28,7 +28,7 @@ public class Sucursal {
     }
 
     // El envío llega a esta sucursal.
-    // Primero se DELEGA al envío (que valida su etapa, actualiza sus paquetes y
+    // Primero se delega al envío (que valida su etapa, actualiza sus paquetes y
     // registra el movimiento) y recién después se lo suma a la lista propia:
     // si el envío rechaza la operación, la sucursal no queda con un envío fantasma.
     public void recibir(Envio envio) {
@@ -42,7 +42,7 @@ public class Sucursal {
     }
 
     // El envío sale de esta sucursal hacia su próxima parada.
-    // Se le pide permiso al envío ANTES de quitarlo de la lista, por el mismo
+    // Se le pide permiso al envío antes de quitarlo de la lista, por el mismo
     // motivo anterior: la lista propia solo refleja operaciones que realmente
     // sucedieron.
     public void despachar(Envio envio) {

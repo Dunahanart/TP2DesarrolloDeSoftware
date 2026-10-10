@@ -8,8 +8,7 @@ public class EnvioInternacional extends Envio {
     private final String paisDestino;
 
     public EnvioInternacional(Cliente cliente, String ciudadDestino, String paisDestino, Paquete... paquetes) {
-        // El país se valida ANTES de llamar a super(...) con este truco: si es
-        // inválido, el envío nunca llega a crearse ni a registrarse en su cliente.
+       
         super(cliente, ciudadDestino + ", " + validarPais(paisDestino), paquetes);
         this.paisDestino = paisDestino;
     }

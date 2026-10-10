@@ -36,7 +36,7 @@ public class Paquete {
 
     // ── TP2: cambios de estado del paquete ──────────────────────────────────
     //
-    // Son package-private a propósito. Un paquete NO cambia de estado porque un
+    // Son package-private a propósito. Un paquete no cambia de estado porque un
     // objeto externo lo pida, sino porque su Envio coordina el recorrido:
     //
     //     Sucursal.recibir(envio)  ->  Envio.recibirEn(...)     ->  Paquete.recibir()

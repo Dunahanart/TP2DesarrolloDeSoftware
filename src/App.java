@@ -1,8 +1,8 @@
 import java.util.NoSuchElementException;
 
-// App es sólo la CAPA DE PRESENTACIÓN y de orquestación de la demostración:
-// crea los objetos, les manda mensajes y MUESTRA los datos que los objetos le
-// devuelven. Nunca recorre ni modifica el interior de otros objetos.
+/* App es sólo la CAPA DE PRESENTACIÓN y de orquestación de la demostración:
+crea los objetos, les manda mensajes y MUESTRA los datos que los objetos le
+devuelven. Nunca recorre ni modifica el interior de otros objetos. */
 public class App {
 
     public static void main(String[] args) {
@@ -59,7 +59,6 @@ public class App {
         viedma.despachar(envio3);
 
         // ── Nivel 2 y TP2.1: las consultas DEVUELVEN datos y App los muestra ─
-        //
         //     App --> envio.getUltimoMovimiento() --> Movimiento --> System.out
         System.out.println("\n-- Nivel 2: seguimiento del envío #1 --");
         System.out.println("Historial completo:");
