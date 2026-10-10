@@ -1,14 +1,11 @@
-// Parte 7: envío estándar — costo base por peso
+// Parte 7 del TP1: envío estándar — costo base por peso.
+// El TP2 solo cambia la firma del constructor: todo envío ahora tiene cliente.
 public class EnvioEstandar extends Envio {
 
     private static final double TARIFA_POR_KG = 150.0;
 
-    public EnvioEstandar(String destino) {
-        super(destino);
-    }
-
-    public EnvioEstandar(String destino, Paquete paquete) {
-        super(destino, paquete);
+    public EnvioEstandar(Cliente cliente, String destino, Paquete... paquetes) {
+        super(cliente, destino, paquetes);
     }
 
     @Override

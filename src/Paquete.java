@@ -1,17 +1,17 @@
 public class Paquete {
 
-    // Partes 1 y 2: identidad propia, info protegida, estado encapsulado
+    // Partes 1 y 2 del TP1: identidad propia, info protegida, estado encapsulado
     private final String id;
     private final String descripcion;
     private final double pesoKg;
     private EstadoPaquete estado;
 
-    // Parte 3: constructor con información mínima
+    // Parte 3 del TP1: constructor con información mínima
     public Paquete(String id, double pesoKg) {
         this(id, "Sin descripción", pesoKg);
     }
 
-    // Parte 3: constructor con información completa
+    // Parte 3 del TP1: constructor con información completa
     public Paquete(String id, String descripcion, double pesoKg) {
         validarPeso(pesoKg);
         this.id = id;
@@ -20,32 +20,44 @@ public class Paquete {
         this.estado = EstadoPaquete.RECIBIDO;
     }
 
-    // Parte 5: validación interna, no expuesta públicamente
+    // Parte 5 del TP1: validación interna, no expuesta públicamente
     private void validarPeso(double pesoKg) {
         if (pesoKg <= 0) {
             throw new IllegalArgumentException("El peso debe ser mayor a cero.");
         }
     }
 
-    // Parte 5: verifica si la transición de estado es válida
+    // Parte 5 del TP1: verifica si la transición de estado es válida.
+    // Método private porque es implementación interna del objeto: los demás solo
+    // piden "avanzar" y no necesitan saber cómo el paquete decide si puede.
     private boolean transicionValida(EstadoPaquete nuevoEstado) {
         return nuevoEstado.ordinal() == this.estado.ordinal() + 1;
     }
 
-    // Parte 2 y 4: acciones reales que provocan cambios de estado
-    public void iniciarPreparacion() {
+    // ── TP2: cambios de estado del paquete ──────────────────────────────────
+    //
+    // Son package-private a propósito. Un paquete NO cambia de estado porque un
+    // objeto externo lo pida, sino porque su Envio coordina el recorrido:
+    //
+    //     Sucursal.recibir(envio)  ->  Envio.recibirEn(...)     ->  Paquete.recibir()
+    //     Sucursal.despachar(...)  ->  Envio.despacharDesde(..) ->  Paquete.iniciarViaje()
+    //     Envio.entregar()         ->                          ->  Paquete.entregar()
+    //
+    // Al no ser públicos queda explícito en el diseño quién manda sobre el
+    // estado del paquete: su envío, nunca App ni una sucursal directamente.
+    void recibir() {
         avanzarEstado(EstadoPaquete.EN_PREPARACION);
     }
 
-    public void salirADistribucion() {
-        avanzarEstado(EstadoPaquete.EN_DISTRIBUCION);
+    void iniciarViaje() {
+        avanzarEstado(EstadoPaquete.EN_VIAJE);
     }
 
-    public void marcarEntregado() {
+    void entregar() {
         avanzarEstado(EstadoPaquete.ENTREGADO);
     }
 
-    // Parte 5: lógica de transición encapsulada
+    // Parte 5 del TP1: lógica de transición encapsulada
     private void avanzarEstado(EstadoPaquete nuevoEstado) {
         if (!transicionValida(nuevoEstado)) {
             throw new IllegalStateException(

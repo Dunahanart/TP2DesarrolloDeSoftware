@@ -1,5 +1,4 @@
-import java.util.ArrayList;
-import java.util.List;
+import java.util.NoSuchElementException;
 
 public class App {
 
@@ -7,124 +6,161 @@ public class App {
 
         System.out.println("--- SISTEMA DE GESTIÓN DE ENVÍOS Y DISTRIBUCIÓN ---\n");
 
-        // ── Parte 1, 2, 3: crear paquetes con distintos constructores ──
-        Paquete p1 = new Paquete("PKG-001", 2.5);                          // mínimo
-        Paquete p2 = new Paquete("PKG-002", "Libros de texto", 1.8);       // completo
-        Paquete p3 = new Paquete("PKG-003", "Electrónica frágil", 0.9);
-        Paquete p4 = new Paquete("PKG-004", "Ropa de invierno", 3.2);
-        Paquete p5 = new Paquete("PKG-005", "Documentos legales", 0.3);
-        Paquete p6 = new Paquete("PKG-006", "Electrónica", 1.5);
-        
+        // ── Nivel 1: clientes y sucursales ──────────────────────────────────
+        System.out.println("-- Clientes y sucursales --");
+        Cliente cliente1 = new Cliente("CLI-001", "María Gómez");
+        Cliente cliente2 = new Cliente("CLI-002", "Distribuidora Sur");
+        System.out.println(cliente1);
+        System.out.println(cliente2);
 
-        System.out.println("-- Paquetes creados --");
-        System.out.println(p1);
-        System.out.println(p2);
-        System.out.println(p3);
-        System.out.println(p5);
-        System.out.println(p6);
+        Sucursal viedma = new Sucursal("SUC-01", "Viedma");
+        Sucursal bahiaBlanca = new Sucursal("SUC-02", "Bahía Blanca");
+        Sucursal buenosAires = new Sucursal("SUC-03", "Buenos Aires");
+        System.out.println(viedma);
+        System.out.println(bahiaBlanca);
+        System.out.println(buenosAires);
 
-        // ── Parte 3 y 7: crear envíos de distintos tipos con constructores ──
-        EnvioEstandar envio1 = new EnvioEstandar("Neuquén", p1);
-        envio1.agregarPaquete(p2);
+        // ── Nivel 1: alta de envíos (cada envío nace asociado a su cliente) ─
+        System.out.println("\n-- Alta de envíos --");
+        Envio envio1 = new EnvioEstandar(cliente1, "Neuquén",
+            new Paquete("PKG-001", 2.5),
+            new Paquete("PKG-002", "Libros de texto", 1.8));
+        Envio envio2 = new EnvioExpress(cliente1, "Buenos Aires",
+            new Paquete("PKG-003", 0.9));
+        Envio envio3 = new EnvioInternacional(cliente2, "Santiago", "Chile",
+            new Paquete("PKG-004", "Electrónica frágil", 3.2));
 
-        EnvioExpress envio2 = new EnvioExpress("Buenos Aires");
-        envio2.agregarPaquete(p3);
+        GestorEnvios gestor = new GestorEnvios();
+        gestor.registrar(envio1);
+        gestor.registrar(envio2);
+        gestor.registrar(envio3);
 
-        EnvioInternacional envio3 = new EnvioInternacional("Santiago", "Chile", p4);
-        envio3.agregarPaquete(p5);
+        // ── Nivel 1: el recorrido lo mueven las sucursales ──────────────────
+        // El envío #1 pasa por varias sucursales antes de llegar a su destino.
+        System.out.println("\n-- Recorrido del envío #1 (varias sucursales) --");
+        viedma.recibir(envio1);         // REGISTRADO -> EN_PREPARACION
+        viedma.despachar(envio1);       // EN_PREPARACION -> EN_VIAJE
+        bahiaBlanca.recibir(envio1);    // sucursal intermedia: sigue EN_VIAJE
+        bahiaBlanca.despachar(envio1);
+        buenosAires.recibir(envio1);
+        buenosAires.despachar(envio1);
+        envio1.entregar();              // llega a su destino final
 
-        EnvioInternacional envio4 = new EnvioInternacional("Montevideo", "Uruguay");
-        envio4.agregarPaquete(p6);
+        System.out.println("\n-- Recorrido del envío #2 (express, una sola sucursal) --");
+        buenosAires.recibir(envio2);
+        buenosAires.despachar(envio2);
+        envio2.entregar();
 
-        // ── Parte 6: lista de envíos para la jornada ──
-        List<Envio> jornada = new ArrayList<>();
-        jornada.add(envio1);
-        jornada.add(envio2);
-        jornada.add(envio3);
-        jornada.add(envio4);
+        System.out.println("\n-- Recorrido del envío #3 (internacional, queda en tránsito) --");
+        viedma.recibir(envio3);
+        viedma.despachar(envio3);
 
-        // ── Parte 4: iniciar envíos y observar cómo cambian los paquetes ──
-        //
-        // CORRECCIÓN: ahora cada etapa del ciclo tiene su propio paso.
-        // iniciar() deja los paquetes SOLO en EN_PREPARACION. Antes llamaba
-        // también a salirADistribucion() dentro del mismo método, con lo que
-        // EN_PREPARACION nunca se llegaba a observar.
-        System.out.println("\n-- Iniciando envíos --");
-        for (Envio e : jornada) {
-            e.iniciar();
+        // ── Nivel 2: consultas de seguimiento ───────────────────────────────
+        System.out.println("\n-- Nivel 2: seguimiento del envío #1 --");
+        envio1.mostrarHistorial();
+        envio1.mostrarRecorrido();
+        envio1.mostrarUltimoMovimiento();
+
+        System.out.println("\n-- Nivel 2: seguimiento del envío #3 (aún en viaje) --");
+        envio3.mostrarHistorial();
+        envio3.mostrarRecorrido();
+        envio3.mostrarUltimoMovimiento();
+
+        // ── Nivel 1: cada cliente conoce sus propios envíos ─────────────────
+        System.out.println();
+        cliente1.mostrarEnvios();
+        System.out.println();
+        cliente2.mostrarEnvios();
+
+        // ── Nivel 3: consultas e información general del sistema ────────────
+        System.out.println();
+        gestor.mostrarResumenGeneral();
+        gestor.mostrarEnvios();
+        System.out.println();
+        gestor.buscarPorId(2).mostrarResumen();
+
+        // ── Nivel 3: operaciones inválidas, todas impedidas ─────────────────
+        System.out.println("\n-- Pruebas de validación (errores esperados) --");
+
+        // 1) recibir un envío que ya fue entregado
+        try {
+            buenosAires.recibir(envio1);
+        } catch (IllegalStateException e) {
+            System.out.println("1) " + e.getMessage());
         }
 
-        System.out.println("\n-- Estado de paquetes tras iniciar (EN_PREPARACION) --");
-        System.out.println(p1);
-        System.out.println(p2);
-        System.out.println(p6);
-        System.out.println(p3);
-        System.out.println(p4);
-        System.out.println(p5);
-
-        // ── Parte 4: etapa intermedia — los envíos salen a distribución ──
-        // Esta llamada es la que faltaba; sin ella, finalizar() lanza excepción.
-        System.out.println("\n-- Saliendo a distribución --");
-        for (Envio e : jornada) {
-            e.salirADistribucion();
+        // 2) registrar un envío sin paquetes
+        try {
+            gestor.registrar(new EnvioEstandar(cliente2, "Mendoza"));
+        } catch (IllegalStateException e) {
+            System.out.println("2) " + e.getMessage());
         }
 
-        System.out.println("\n-- Estado de paquetes tras salir a distribución (EN_DISTRIBUCION) --");
-        System.out.println(p1);
-        System.out.println(p2);
-        System.out.println(p6);
-        System.out.println(p3);
-        System.out.println(p4);
-        System.out.println(p5);
-
-        // ── Parte 4: finalizar envíos ──
-        System.out.println("\n-- Finalizando envíos --");
-        for (Envio e : jornada) {
-            e.finalizar();
+        // 3) operar sobre un envío inexistente
+        try {
+            gestor.buscarPorId(999);
+        } catch (NoSuchElementException e) {
+            System.out.println("3) " + e.getMessage());
         }
 
-        System.out.println("\n-- Estado final de paquetes (ENTREGADO) --");
-        System.out.println(p1);
-        System.out.println(p6); 
-        System.out.println(p3);
-        System.out.println(p4);
+        Envio envio4 = new EnvioEstandar(cliente2, "Bariloche",
+            new Paquete("PKG-005", 1.0));
+        gestor.registrar(envio4);
 
-        // ── Parte 6: resumen de la jornada ──
-        System.out.println("\n-- Resumen de la jornada --");
-        for (Envio e : jornada) {
-            e.mostrarResumen();
+        // 4) despachar un envío que ninguna sucursal recibió todavía
+        try {
+            viedma.despachar(envio4);
+        } catch (IllegalStateException e) {
+            System.out.println("4) " + e.getMessage());
         }
 
-        // ── Demostración de transición inválida ──
-        System.out.println("\n-- Prueba de transición inválida --");
+        // 5) entregar un envío que no fue despachado
+        try {
+            envio4.entregar();
+        } catch (IllegalStateException e) {
+            System.out.println("5) " + e.getMessage());
+        }
+
+        // 6) mover un envío de sucursal antes de que sea despachado
+        viedma.recibir(envio4);
+        try {
+            bahiaBlanca.recibir(envio4);
+        } catch (IllegalStateException e) {
+            System.out.println("6) " + e.getMessage());
+        }
+
+        // 7) límite de 3 paquetes por envío
+        Envio envioLleno = new EnvioEstandar(cliente2, "Salta",
+            new Paquete("PKG-006", 1.0),
+            new Paquete("PKG-007", 1.0),
+            new Paquete("PKG-008", 1.0));
+        try {
+            envioLleno.agregarPaquete(new Paquete("PKG-009", 1.0)); // 4to: debe fallar
+        } catch (IllegalStateException e) {
+            System.out.println("7) " + e.getMessage());
+        }
+
+        // 8) agregar paquetes a un envío que ya fue procesado por una sucursal
+        viedma.despachar(envio4);
+        try {
+            envio4.agregarPaquete(new Paquete("PKG-010", 1.0));
+        } catch (IllegalStateException e) {
+            System.out.println("8) " + e.getMessage());
+        }
+
+        // 9) transición inválida de un paquete (saltarse una etapa)
         Paquete pTest = new Paquete("PKG-TEST", 1.0);
+        pTest.recibir(); // RECIBIDO -> EN_PREPARACION, válido
         try {
-            pTest.marcarEntregado(); // salta RECIBIDO -> ENTREGADO, debería fallar
+            pTest.entregar(); // salta EN_VIAJE, debe fallar
         } catch (IllegalStateException e) {
-            System.out.println("Error esperado: " + e.getMessage());
+            System.out.println("9) " + e.getMessage());
         }
 
-        // ── Demostración de límite de paquetes por envío ──
-        System.out.println("\n-- Prueba de límite de paquetes --");
-        EnvioEstandar envioLleno = new EnvioEstandar("Bariloche");
-        envioLleno.agregarPaquete(new Paquete("A", 1.0));
-        envioLleno.agregarPaquete(new Paquete("B", 1.0));
-        envioLleno.agregarPaquete(new Paquete("C", 1.0));
-        try {
-            envioLleno.agregarPaquete(new Paquete("D", 1.0)); // debe fallar
-        } catch (IllegalStateException e) {
-            System.out.println("Error esperado: " + e.getMessage());
-        }
-
-        // ── Demostración de ciclo de vida incompleto ──
-        System.out.println("\n-- Prueba de ciclo incompleto (finalizar sin distribuir) --");
-        EnvioExpress envioCorto = new EnvioExpress("Córdoba");
-        envioCorto.agregarPaquete(new Paquete("E", 1.0));
-        envioCorto.iniciar();   // queda en EN_PREPARACION
-        try {
-            envioCorto.finalizar(); // debe fallar: nunca salió a distribución
-        } catch (IllegalStateException e) {
-            System.out.println("Error esperado: " + e.getMessage());
-        }
+        // ── Estado final del sistema ────────────────────────────────────────
+        System.out.println("\n-- Estado final de los envíos --");
+        gestor.mostrarEnvios();
+        System.out.println();
+        viedma.mostrarEnviosEnProceso();
     }
 }

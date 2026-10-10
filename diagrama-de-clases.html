@@ -100,6 +100,7 @@
       <tr><td><code>-</code></td><td>Atributo o método <code>private</code></td></tr>
       <tr><td><code>+</code></td><td>Método <code>public</code></td></tr>
       <tr><td><code>#</code></td><td>Método <code>protected</code></td></tr>
+      <tr><td><code>~</code></td><td>Método <code>package-private</code> (visible solo dentro del sistema)</td></tr>
       <tr><td><code>*</code> al final</td><td>Método <strong>abstracto</strong>, debe implementarse en las subclases</td></tr>
       <tr><td><code>$</code></td><td>Miembro <code>static</code>, compartido por todas las instancias</td></tr>
       <tr><td><code>&lt;&lt;enumeration&gt;&gt;</code></td><td>Enumeración de valores fijos</td></tr>
@@ -120,18 +121,42 @@
     <tbody>
       <tr>
         <td><strong>RECIBIDO</strong></td>
-        <td>&#8594; <code>iniciarPreparacion()</code> &#8594;</td>
+        <td>&#8594; <code>recibir()</code> &#8594;</td>
         <td><strong>EN_PREPARACION</strong></td>
-        <td>&#8594; <code>salirADistribucion()</code> &#8594;</td>
-        <td><strong>EN_DISTRIBUCION</strong></td>
-        <td>&#8594; <code>marcarEntregado()</code> &#8594;</td>
+        <td>&#8594; <code>iniciarViaje()</code> &#8594;</td>
+        <td><strong>EN_VIAJE</strong></td>
+        <td>&#8594; <code>entregar()</code> &#8594;</td>
         <td><strong>ENTREGADO</strong></td>
       </tr>
       <tr>
         <td colspan="7" style="color:#555; font-style:italic">
           Cada etapa solo avanza de a un paso. Saltarse una genera <code>IllegalStateException</code>.
-          En <code>Envio</code>, cada etapa tiene su propio método: <code>iniciar()</code> &#183;
-          <code>salirADistribucion()</code> &#183; <code>finalizar()</code>.
+          Esos métodos son <code>package-private</code>: los invoca únicamente el <code>Envio</code>
+          del que depende el paquete.
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2 style="margin-top:10mm">Ciclo de vida del envío</h2>
+  <table style="width:90%">
+    <tbody>
+      <tr>
+        <td><strong>REGISTRADO</strong></td>
+        <td>&#8594; <code>recibirEn()</code> &#8594;</td>
+        <td><strong>EN_PREPARACION</strong></td>
+        <td>&#8594; <code>despacharDesde()</code> &#8594;</td>
+        <td><strong>EN_VIAJE</strong></td>
+        <td>&#8594; <code>entregar()</code> &#8594;</td>
+        <td><strong>ENTREGADO</strong></td>
+      </tr>
+      <tr>
+        <td colspan="7" style="color:#555; font-style:italic">
+          Las sucursales mueven al envío: <code>Sucursal.recibir(envio)</code> &#183;
+          <code>Sucursal.despachar(envio)</code>; la entrega es del propio envío porque el
+          destino final no siempre es una sucursal. Una sucursal intermedia recibe o despacha
+          un envío <code>EN_VIAJE</code> sin cambiar su etapa: solo registra el paso en el
+          historial.
         </td>
       </tr>
     </tbody>
@@ -148,7 +173,22 @@ const codigo = `classDiagram
         <<enumeration>>
         RECIBIDO
         EN_PREPARACION
-        EN_DISTRIBUCION
+        EN_VIAJE
+        ENTREGADO
+    }
+
+    class EstadoEnvio {
+        <<enumeration>>
+        REGISTRADO
+        EN_PREPARACION
+        EN_VIAJE
+        ENTREGADO
+    }
+
+    class TipoMovimiento {
+        <<enumeration>>
+        RECIBIDO
+        DESPACHADO
         ENTREGADO
     }
 
@@ -159,47 +199,96 @@ const codigo = `classDiagram
         -EstadoPaquete estado
         +Paquete(id, pesoKg)
         +Paquete(id, descripcion, pesoKg)
-        +iniciarPreparacion()
-        +salirADistribucion()
-        +marcarEntregado()
+        ~recibir() void
+        ~iniciarViaje() void
+        ~entregar() void
         -validarPeso(peso) void
         -transicionValida(nuevo) boolean
         -avanzarEstado(nuevo) void
     }
 
+    class Cliente {
+        -String id
+        -String nombre
+        -List~Envio~ envios
+        +Cliente(id, nombre)
+        ~registrarEnvio(envio) void
+        +getEnvios() List~Envio~
+        +mostrarEnvios() void
+    }
+
+    class Sucursal {
+        -String id
+        -String nombre
+        -List~Envio~ enviosEnProceso
+        +Sucursal(id, nombre)
+        +recibir(envio) void
+        +despachar(envio) void
+        +getEnviosEnProceso() List~Envio~
+        +mostrarEnviosEnProceso() void
+    }
+
+    class Movimiento {
+        -LocalDateTime fecha
+        -TipoMovimiento tipo
+        -Sucursal sucursal
+        ~Movimiento(tipo, sucursal)
+        +getFecha() LocalDateTime
+        +getTipo() TipoMovimiento
+        +getSucursal() Sucursal
+    }
+
     class Envio {
         <<abstract>>
-        -int id$
+        -int contadorId$ = 1
+        -int id
+        -Cliente cliente
         -String destino
         -List~Paquete~ paquetes
-        -boolean iniciado
-        -boolean distribuido
-        -boolean finalizado
-        +Envio(destino)
-        +Envio(destino, paquete)
+        -List~Movimiento~ historial
+        -Sucursal sucursalOrigen
+        -Sucursal sucursalActual
+        -EstadoEnvio estado
+        +Envio(cliente, destino, paquetes...)
         +agregarPaquete(paquete) void
-        +iniciar() void
-        +salirADistribucion() void
-        +finalizar() void
+        ~recibirEn(sucursal) void
+        ~despacharDesde(sucursal) void
+        +entregar() void
+        +mostrarHistorial() void
+        +mostrarRecorrido() void
+        +mostrarUltimoMovimiento() void
+        +getHistorial() List~Movimiento~
         +calcularCosto() double
         +mostrarResumen() void
+        -registrarMovimiento(tipo, sucursal) void
+        -validarSucursal(sucursal) void
         #calcularCostoBase() double*
         #aplicarRecargo(costoBase) double
         #calcularPesoTotal() double
     }
 
+    class GestorEnvios {
+        -List~Envio~ envios
+        +registrar(envio) void
+        +buscarPorId(id) Envio
+        +enviosDe(cliente) List~Envio~
+        +cantidadEnvios() int
+        +costoTotal() double
+        +costoPromedio() double
+        +mostrarEnvios() void
+        +mostrarResumenGeneral() void
+    }
+
     class EnvioEstandar {
         -TARIFA_POR_KG$ = 150.0
-        +EnvioEstandar(destino)
-        +EnvioEstandar(destino, paquete)
+        +EnvioEstandar(cliente, destino, paquetes...)
         #calcularCostoBase() double
     }
 
     class EnvioExpress {
         -TARIFA_POR_KG$ = 300.0
         -RECARGO_URGENCIA$ = 500.0
-        +EnvioExpress(destino)
-        +EnvioExpress(destino, paquete)
+        +EnvioExpress(cliente, destino, paquetes...)
         #calcularCostoBase() double
         #aplicarRecargo(costoBase) double
     }
@@ -208,8 +297,7 @@ const codigo = `classDiagram
         -TARIFA_POR_KG$ = 500.0
         -PORCENTAJE_ADUANA$ = 0.20
         -paisDestino String
-        +EnvioInternacional(ciudad, pais)
-        +EnvioInternacional(ciudad, pais, paquete)
+        +EnvioInternacional(cliente, ciudad, pais, paquetes...)
         #calcularCostoBase() double
         #aplicarRecargo(costoBase) double
         +getPaisDestino() String
@@ -225,12 +313,21 @@ const codigo = `classDiagram
     Envio <|-- EnvioInternacional : hereda
 
     Envio "1" o-- "*" Paquete : contiene (máx. 3)
-    Paquete --> EstadoPaquete : su estado actual
+    Envio "1" o-- "*" Movimiento : historial
+    Cliente "1" o-- "*" Envio : solicita
+    Sucursal "1" o-- "*" Envio : tiene en proceso
 
-    App ..> EnvioEstandar : crea
-    App ..> EnvioExpress : crea
-    App ..> EnvioInternacional : crea
-    App ..> Paquete : crea
+    Envio --> Cliente : pertenece a
+    Envio --> EstadoEnvio : su etapa actual
+    Envio --> Sucursal : origen / actual (0..1)
+    Paquete --> EstadoPaquete : su estado actual
+    Movimiento --> TipoMovimiento : qué ocurrió
+    Movimiento --> Sucursal : dónde ocurrió (0..1)
+
+    App ..> Cliente : crea
+    App ..> Sucursal : crea
+    App ..> GestorEnvios : usa
+    GestorEnvios ..> Envio : registra y consulta
 `;
 
 mermaid.initialize({

@@ -1,6 +1,6 @@
 public enum EstadoPaquete {
     RECIBIDO,
     EN_PREPARACION,
-    EN_DISTRIBUCION,
+    EN_VIAJE,
     ENTREGADO
 }
