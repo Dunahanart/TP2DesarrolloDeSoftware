@@ -1,5 +1,8 @@
 import java.util.NoSuchElementException;
 
+// App es sólo la CAPA DE PRESENTACIÓN y de orquestación de la demostración:
+// crea los objetos, les manda mensajes y MUESTRA los datos que los objetos le
+// devuelven. Nunca recorre ni modifica el interior de otros objetos.
 public class App {
 
     public static void main(String[] args) {
@@ -36,7 +39,7 @@ public class App {
         gestor.registrar(envio3);
 
         // ── Nivel 1: el recorrido lo mueven las sucursales ──────────────────
-        // El envío #1 pasa por varias sucursales antes de llegar a su destino.
+        // Colaboración: App --> Sucursal --> Envio --> Paquete
         System.out.println("\n-- Recorrido del envío #1 (varias sucursales) --");
         viedma.recibir(envio1);         // REGISTRADO -> EN_PREPARACION
         viedma.despachar(envio1);       // EN_PREPARACION -> EN_VIAJE
@@ -55,29 +58,47 @@ public class App {
         viedma.recibir(envio3);
         viedma.despachar(envio3);
 
-        // ── Nivel 2: consultas de seguimiento ───────────────────────────────
+        // ── Nivel 2 y TP2.1: las consultas DEVUELVEN datos y App los muestra ─
+        //
+        //     App --> envio.getUltimoMovimiento() --> Movimiento --> System.out
         System.out.println("\n-- Nivel 2: seguimiento del envío #1 --");
-        envio1.mostrarHistorial();
-        envio1.mostrarRecorrido();
-        envio1.mostrarUltimoMovimiento();
+        System.out.println("Historial completo:");
+        for (Movimiento movimiento : envio1.getHistorial()) {
+            System.out.println("  " + movimiento);
+        }
+        System.out.println("Sucursales por las que pasó: " + envio1.getRecorrido());
+        System.out.println("Último movimiento: " + envio1.getUltimoMovimiento());
 
         System.out.println("\n-- Nivel 2: seguimiento del envío #3 (aún en viaje) --");
-        envio3.mostrarHistorial();
-        envio3.mostrarRecorrido();
-        envio3.mostrarUltimoMovimiento();
+        System.out.println("Historial completo:");
+        for (Movimiento movimiento : envio3.getHistorial()) {
+            System.out.println("  " + movimiento);
+        }
+        System.out.println("Sucursales por las que pasó: " + envio3.getRecorrido());
+        System.out.println("Último movimiento: " + envio3.getUltimoMovimiento());
 
         // ── Nivel 1: cada cliente conoce sus propios envíos ─────────────────
-        System.out.println();
-        cliente1.mostrarEnvios();
-        System.out.println();
-        cliente2.mostrarEnvios();
+        System.out.println("\nEnvíos de " + cliente1 + ":");
+        for (Envio envio : cliente1.getEnvios()) {
+            System.out.println("  " + envio);
+        }
+        System.out.println("Envíos de " + cliente2 + ":");
+        for (Envio envio : cliente2.getEnvios()) {
+            System.out.println("  " + envio);
+        }
 
-        // ── Nivel 3: consultas e información general del sistema ────────────
+        // ── Nivel 3: información general del sistema ────────────────────────
+        System.out.println("\n-- Resumen general del sistema --");
+        System.out.println("  Envíos registrados: " + gestor.cantidadEnvios());
+        System.out.printf("  Costo total:        $%.2f%n", gestor.costoTotal());
+        System.out.printf("  Costo promedio:     $%.2f%n", gestor.costoPromedio());
+
+        System.out.println("Envíos registrados:");
+        for (Envio envio : gestor.getEnvios()) {
+            System.out.println("  " + envio);
+        }
         System.out.println();
-        gestor.mostrarResumenGeneral();
-        gestor.mostrarEnvios();
-        System.out.println();
-        gestor.buscarPorId(2).mostrarResumen();
+        mostrarFicha(gestor.buscarPorId(2));
 
         // ── Nivel 3: operaciones inválidas, todas impedidas ─────────────────
         System.out.println("\n-- Pruebas de validación (errores esperados) --");
@@ -148,19 +169,33 @@ public class App {
             System.out.println("8) " + e.getMessage());
         }
 
-        // 9) transición inválida de un paquete (saltarse una etapa)
-        Paquete pTest = new Paquete("PKG-TEST", 1.0);
-        pTest.recibir(); // RECIBIDO -> EN_PREPARACION, válido
+        // 9) consultar el último movimiento de un envío sin recorrido
         try {
-            pTest.entregar(); // salta EN_VIAJE, debe fallar
-        } catch (IllegalStateException e) {
+            envioLleno.getUltimoMovimiento();
+        } catch (NoSuchElementException e) {
             System.out.println("9) " + e.getMessage());
         }
 
         // ── Estado final del sistema ────────────────────────────────────────
         System.out.println("\n-- Estado final de los envíos --");
-        gestor.mostrarEnvios();
-        System.out.println();
-        viedma.mostrarEnviosEnProceso();
+        for (Envio envio : gestor.getEnvios()) {
+            System.out.println("  " + envio);
+        }
+        System.out.println("Envíos en proceso en " + viedma + ": " + viedma.getEnviosEnProceso());
+    }
+
+    // Presentación de una ficha: App recupera cada dato con su getter y lo
+    // formatea. No conoce ni manipula el interior del envío.
+    private static void mostrarFicha(Envio envio) {
+        System.out.printf(
+            "Envío #%d | Cliente: %-18s | Tipo: %-18s | Destino: %-16s | Origen: %-14s | Paquetes: %d | Estado: %-14s | Costo: $%.2f%n",
+            envio.getId(),
+            envio.getCliente().getNombre(),
+            envio.getClass().getSimpleName(),
+            envio.getDestino(),
+            envio.getSucursalOrigen() == null ? "(sin procesar)" : envio.getSucursalOrigen().getNombre(),
+            envio.getPaquetes().size(),
+            envio.getEstado(),
+            envio.calcularCosto());
     }
 }

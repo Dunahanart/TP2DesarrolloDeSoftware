@@ -52,7 +52,6 @@ classDiagram
         +Cliente(id, nombre)
         ~registrarEnvio(envio) void
         +getEnvios() List~Envio~
-        +mostrarEnvios() void
     }
 
     class Sucursal {
@@ -63,7 +62,6 @@ classDiagram
         +recibir(envio) void
         +despachar(envio) void
         +getEnviosEnProceso() List~Envio~
-        +mostrarEnviosEnProceso() void
     }
 
     class Movimiento {
@@ -78,6 +76,7 @@ classDiagram
 
     class Envio {
         <<abstract>>
+        -int LIMITE_PAQUETES$ = 3
         -int contadorId$ = 1
         -int id
         -Cliente cliente
@@ -92,12 +91,17 @@ classDiagram
         ~recibirEn(sucursal) void
         ~despacharDesde(sucursal) void
         +entregar() void
-        +mostrarHistorial() void
-        +mostrarRecorrido() void
-        +mostrarUltimoMovimiento() void
         +getHistorial() List~Movimiento~
+        +getRecorrido() List~Sucursal~
+        +getUltimoMovimiento() Movimiento
         +calcularCosto() double
-        +mostrarResumen() void
+        -todaviaNoSalio() boolean
+        -enPreparacion() boolean
+        -estaEnViaje() boolean
+        -estaFinalizado() boolean
+        -hayLugarParaPaquetes() boolean
+        -transicionValida(nuevo) boolean
+        -avanzarA(nuevo) void
         -registrarMovimiento(tipo, sucursal) void
         -validarSucursal(sucursal) void
         #calcularCostoBase() double*
@@ -113,8 +117,6 @@ classDiagram
         +cantidadEnvios() int
         +costoTotal() double
         +costoPromedio() double
-        +mostrarEnvios() void
-        +mostrarResumenGeneral() void
     }
 
     class EnvioEstandar {
@@ -211,5 +213,13 @@ REGISTRADO ──recibirEn()──▶ EN_PREPARACION ──despacharDesde()─�
 
 `Envio` es el dueño de su `List<Movimiento>`: él crea los registros
 (constructor `Movimiento` package-private, campos `final`) y responde las
-consultas (`mostrarHistorial()`, `mostrarRecorrido()`, `mostrarUltimoMovimiento()`),
-sin exponer la lista para que otros la recorran.
+consultas **devolviendo datos** (TP2.1): `getHistorial()`, `getRecorrido()`,
+`getUltimoMovimiento()`. Quien los muestre (App) sólo presenta lo recibido.
+
+## Reglas del negocio con nombre propio (TP2.1)
+
+Las comprobaciones reutilizables viven como métodos **privados** del objeto que
+las usa — por ejemplo en `Envio`: `todaviaNoSalio()`, `enPreparacion()`,
+`estaEnViaje()`, `estaFinalizado()`, `hayLugarParaPaquetes()`. El avance de
+estados no usa cadenas de `if/else` ni `switch`: lo resuelven
+`transicionValida(nuevo)` + `avanzarA(nuevo)`, igual que en `Paquete`.

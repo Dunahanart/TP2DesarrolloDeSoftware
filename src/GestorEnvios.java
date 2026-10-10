@@ -72,22 +72,4 @@ public class GestorEnvios {
     public List<Envio> getEnvios() {
         return List.copyOf(envios);
     }
-
-    public void mostrarEnvios() {
-        System.out.println("Envíos registrados en el sistema:");
-        if (envios.isEmpty()) {
-            System.out.println("  (sin envíos)");
-            return;
-        }
-        for (Envio envio : envios) {
-            System.out.println("  " + envio);
-        }
-    }
-
-    public void mostrarResumenGeneral() {
-        System.out.println("-- Resumen general del sistema --");
-        System.out.println("  Envíos registrados: " + cantidadEnvios());
-        System.out.printf("  Costo total:        $%.2f%n", costoTotal());
-        System.out.printf("  Costo promedio:     $%.2f%n", costoPromedio());
-    }
 }

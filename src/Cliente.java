@@ -48,17 +48,6 @@ public class Cliente {
         return List.copyOf(envios);
     }
 
-    public void mostrarEnvios() {
-        System.out.println("Envíos de " + this + ":");
-        if (envios.isEmpty()) {
-            System.out.println("  (todavía no realizó envíos)");
-            return;
-        }
-        for (Envio e : envios) {
-            System.out.println("  " + e);
-        }
-    }
-
     public String getId() { return id; }
     public String getNombre() { return nombre; }
 

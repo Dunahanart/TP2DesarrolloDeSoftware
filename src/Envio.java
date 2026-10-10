@@ -1,6 +1,7 @@
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.NoSuchElementException;
 
 // Parte 7 del TP1: clase abstracta base de EnvioEstandar, EnvioExpress y
 // EnvioInternacional.
@@ -8,8 +9,11 @@ import java.util.List;
 // TP2: el envío pasa a ser el OBJETO CENTRAL del modelo. Es el responsable de:
 //   - conocer a su cliente (Information Expert: él sabe a quién le pertenece);
 //   - coordinar a sus paquetes en cada etapa del recorrido (no lo hace App);
-//   - administrar su propio historial de movimientos (dueño del agregado).
+//   - administrar su propio historial de movimientos (dueño del agregado);
+//   - determinar qué transiciones de estado son válidas (protege su estado).
 public abstract class Envio {
+
+    private static final int LIMITE_PAQUETES = 3;
 
     private static int contadorId = 1;
 
@@ -27,8 +31,6 @@ public abstract class Envio {
     private EstadoEnvio estado;
 
     // El envío nace REGISTRADO, asociado a su cliente y con sus paquetes.
-    // Se eliminaron los constructores alternativos del TP1: un envío sin cliente
-    // ya no tiene sentido en este modelo, y los paquetes llegan por varargs.
     public Envio(Cliente cliente, String destino, Paquete... paquetes) {
         if (cliente == null) {
             throw new IllegalArgumentException("El envío debe estar asociado a un cliente.");
@@ -53,59 +55,106 @@ public abstract class Envio {
         cliente.registrarEnvio(this);
     }
 
+    // ── Reglas del negocio, con nombre propio ───────────────────────────────
+    //
+    // TP2.1: las comprobaciones se extraen como métodos privados con nombre,
+    // en lugar de condiciones sueltas repetidas por el código. Son
+    // reutilizables y hacen que cada operación exprese su intención:
+//
+    //     if (!todaviaNoSalio()) { ... }   en vez de   if (estado != REGISTRADO) { ... }
+    //
+    // Ninguno es público: son implementación interna del objeto. Los demás
+    // piden el comportamiento (recibir/despachar/entregar) y no necesitan
+    // saber con qué reglas el envío decide si puede hacerlo.
+
+    private boolean todaviaNoSalio() {
+        return estado == EstadoEnvio.REGISTRADO;
+    }
+
+    private boolean enPreparacion() {
+        return estado == EstadoEnvio.EN_PREPARACION;
+    }
+
+    private boolean estaEnViaje() {
+        return estado == EstadoEnvio.EN_VIAJE;
+    }
+
+    private boolean estaFinalizado() {
+        return estado == EstadoEnvio.ENTREGADO;
+    }
+
+    private boolean hayLugarParaPaquetes() {
+        return paquetes.size() < LIMITE_PAQUETES;
+    }
+
     public void agregarPaquete(Paquete paquete) {
         if (paquete == null) {
             throw new IllegalArgumentException("El paquete no puede ser nulo.");
         }
-        if (estado != EstadoEnvio.REGISTRADO) {
+        if (!todaviaNoSalio()) {
             throw new IllegalStateException(
                 "No se pueden agregar paquetes a un envío que ya fue recibido por una sucursal.");
         }
-        if (paquetes.size() >= 3) {
-            throw new IllegalStateException("Un envío no puede tener más de 3 paquetes.");
+        if (!hayLugarParaPaquetes()) {
+            throw new IllegalStateException(
+                "Un envío no puede tener más de " + LIMITE_PAQUETES + " paquetes.");
         }
         paquetes.add(paquete);
     }
 
+    // ── Avance de estados ───────────────────────────────────────────────────
+    //
+    // TP2.1: el cambio de estado NO se resuelve con cadenas de if/else ni con
+    // un switch que enumere todas las etapas. La transición válida la define
+    // el objeto que conoce y protege el estado, con el mismo criterio usado en
+    // Paquete: sólo se avanza DE UN PASO. Cualquier intento de saltarse o
+    // retroceder una etapa cae en la excepción.
+    private boolean transicionValida(EstadoEnvio nuevoEstado) {
+        return nuevoEstado.ordinal() == estado.ordinal() + 1;
+    }
+
+    private void avanzarA(EstadoEnvio nuevoEstado) {
+        if (!transicionValida(nuevoEstado)) {
+            throw new IllegalStateException(
+                "Transición inválida del envío: " + estado + " -> " + nuevoEstado);
+        }
+        estado = nuevoEstado;
+    }
+
     // ── Ciclo de vida: lo mueven las sucursales, no App ─────────────────────
     //
-    // Se reemplazó el ciclo del TP1 (iniciar / salirADistribucion / finalizar)
-    // por recibir / despachar / entregar, porque ahora las ETAPAS las define el
-    // recorrido físico entre sucursales. La cadena de colaboración es:
+    // Cadena de colaboración (TP2):
     //
     //     App --> Sucursal.recibir(envio) --> Envio.recibirEn(sucursal) --> Paquete.recibir()
     //
     // Estos métodos son package-private: fuera del modelo nadie debería poder
-    // mover un envío por su recorrido. Solo la sucursal que lo procesa (y
-    // Envio.entregar(), público porque el destino final no es una sucursal).
+    // mover un envío por su recorrido. Sólo la sucursal que lo procesa (y
+    // entregar(), público porque el destino final no es una sucursal).
 
-    // El envío llega a una sucursal.
-    //   - REGISTRADO    -> pasa a EN_PREPARACION y sus paquetes reciben (primer parada).
-    //   - EN_VIAJE      -> es una sucursal intermedia: el envío sigue EN_VIAJE y
-    //                      solo se registra el paso en el historial (los paquetes
-    //                      no retroceden: la máquina de estados avanza de a un paso).
-    //   - EN_PREPARACION/ENTREGADO -> etapa incorrecta, operación impedida.
+    // El envío llega a una sucursal. Si estaba REGISTRADO es su primera parada
+    // y pasa a preparación; si estaba EN_VIAJE es una sucursal intermedia y el
+    // envío sigue de tránsito (la máquina de estados no retrocede): sólo se
+    // registra el paso en el historial.
     void recibirEn(Sucursal sucursal) {
         validarSucursal(sucursal);
         if (paquetes.isEmpty()) {
             throw new IllegalStateException("No se puede recibir un envío sin paquetes.");
         }
-        switch (estado) {
-            case REGISTRADO -> {
-                estado = EstadoEnvio.EN_PREPARACION;
-                sucursalOrigen = sucursal;
-                for (Paquete paquete : paquetes) {
-                    paquete.recibir();
-                }
-            }
-            case EN_VIAJE -> {
-                // tránsito: nada que cambiar de estado, solo registrar el paso
-            }
-            case EN_PREPARACION -> throw new IllegalStateException(
+        if (estaFinalizado()) {
+            throw new IllegalStateException(
+                "El envío #" + id + " ya fue entregado y no puede recibirse de nuevo.");
+        }
+        if (enPreparacion()) {
+            throw new IllegalStateException(
                 "El envío #" + id + " ya está en preparación en otra sucursal; "
                 + "debe ser despachado antes de moverse.");
-            case ENTREGADO -> throw new IllegalStateException(
-                "El envío #" + id + " ya fue entregado y no puede recibirse de nuevo.");
+        }
+        if (todaviaNoSalio()) {
+            avanzarA(EstadoEnvio.EN_PREPARACION);
+            sucursalOrigen = sucursal;
+            for (Paquete paquete : paquetes) {
+                paquete.recibir();
+            }
         }
         sucursalActual = sucursal;
         registrarMovimiento(TipoMovimiento.RECIBIDO, sucursal);
@@ -113,27 +162,23 @@ public abstract class Envio {
             + " (estado: " + estado + ").");
     }
 
-    // El envío sale de una sucursal hacia su próxima parada.
-    //   - EN_PREPARACION -> pasa a EN_VIAJE y sus paquetes inician el viaje.
-    //   - EN_VIAJE       -> sigue en tránsito (parada intermedia).
-    //   - REGISTRADO     -> nadie lo recibió todavía.
-    //   - ENTREGADO      -> despachar algo entregado está impedido.
+    // El envío sale de una sucursal hacia su próxima parada. Si estaba EN_VIAJE
+    // (sucursal intermedia) sigue su tránsito: sólo se registra el movimiento.
     void despacharDesde(Sucursal sucursal) {
         validarSucursal(sucursal);
-        switch (estado) {
-            case REGISTRADO -> throw new IllegalStateException(
+        if (todaviaNoSalio()) {
+            throw new IllegalStateException(
                 "El envío #" + id + " debe ser recibido por una sucursal antes de despacharlo.");
-            case EN_PREPARACION -> {
-                estado = EstadoEnvio.EN_VIAJE;
-                for (Paquete paquete : paquetes) {
-                    paquete.iniciarViaje();
-                }
-            }
-            case EN_VIAJE -> {
-                // sigue su tránsito
-            }
-            case ENTREGADO -> throw new IllegalStateException(
+        }
+        if (estaFinalizado()) {
+            throw new IllegalStateException(
                 "No se puede despachar el envío #" + id + ": ya fue entregado.");
+        }
+        if (enPreparacion()) {
+            avanzarA(EstadoEnvio.EN_VIAJE);
+            for (Paquete paquete : paquetes) {
+                paquete.iniciarViaje();
+            }
         }
         registrarMovimiento(TipoMovimiento.DESPACHADO, sucursal);
         System.out.println("Envío #" + id + " despachado desde la sucursal " + sucursal.getNombre()
@@ -142,17 +187,16 @@ public abstract class Envio {
 
     // El envío llega a su destino final y se entrega. Es público porque el
     // destino no siempre es una sucursal de la red (por ejemplo: "Neuquén").
-    // Valida la etapa: entregar algo que no fue despachado está impedido.
     public void entregar() {
-        if (estado == EstadoEnvio.ENTREGADO) {
+        if (estaFinalizado()) {
             throw new IllegalStateException("El envío #" + id + " ya fue entregado.");
         }
-        if (estado != EstadoEnvio.EN_VIAJE) {
+        if (!estaEnViaje()) {
             throw new IllegalStateException(
                 "El envío #" + id + " debe ser despachado antes de poder entregarse "
                 + "(estado actual: " + estado + ").");
         }
-        estado = EstadoEnvio.ENTREGADO;
+        avanzarA(EstadoEnvio.ENTREGADO);
         for (Paquete paquete : paquetes) {
             paquete.entregar();
         }
@@ -168,50 +212,46 @@ public abstract class Envio {
 
     // El envío es dueño de su historial (Information Expert + Creator): es el
     // único que sabe qué le pasó, cuándo y dónde, y el único que crea Movimiento.
-    // Private: los demás piden comportamiento, no fabrican registros.
     private void registrarMovimiento(TipoMovimiento tipo, Sucursal sucursal) {
         historial.add(new Movimiento(tipo, sucursal));
     }
 
-    // ── Consultas de seguimiento (Nivel 2) ──────────────────────────────────
+    // ── Consultas de seguimiento (Nivel 2 / TP2.1) ──────────────────────────
     //
-    // Se le pregunta al envío en lugar de extraer sus movimientos y recorrerlos
-    // desde afuera: "preguntar por comportamiento antes que pedir datos internos".
+    // TP2.1: las consultas DEVUELVEN el dato; quien lo muestre es otro asunto
+    // (por ejemplo App). No hay métodos cuyo único objetivo sea imprimir.
+    //
+    //     App --> envio.getUltimoMovimiento() --> Movimiento --> System.out
+    //
+    // El objeto sigue respondiendo por su propia información (Tell, don't ask):
+    // nadie recorre el historial crudo para reconstruir el recorrido.
 
-    public void mostrarHistorial() {
-        System.out.println("Historial del envío #" + id + " (" + destino + "):");
-        if (historial.isEmpty()) {
-            System.out.println("  (sin movimientos registrados)");
-            return;
-        }
-        for (Movimiento movimiento : historial) {
-            System.out.println("  " + movimiento);
-        }
-    }
-
-    public void mostrarRecorrido() {
-        List<String> sucursales = new ArrayList<>();
-        for (Movimiento movimiento : historial) {
-            Sucursal sucursal = movimiento.getSucursal();
-            if (sucursal != null && !sucursales.contains(sucursal.getNombre())) {
-                sucursales.add(sucursal.getNombre());
-            }
-        }
-        System.out.println("Envío #" + id + " pasó por: "
-            + (sucursales.isEmpty() ? "(todavía no pasó por ninguna sucursal)"
-                                    : String.join(" -> ", sucursales)));
-    }
-
-    public void mostrarUltimoMovimiento() {
-        System.out.println(historial.isEmpty()
-            ? "Envío #" + id + ": sin movimientos registrados."
-            : "Último movimiento del envío #" + id + ": " + historial.get(historial.size() - 1));
-    }
-
-    // Copia inmutable del historial para consultas puntuales externas; la
-    // administración sigue siendo exclusiva del envío.
+    // Copia inmutable: se puede consultar, pero no se modifica desde afuera.
     public List<Movimiento> getHistorial() {
         return List.copyOf(historial);
+    }
+
+    // Último movimiento registrado, o excepción si el envío no tiene recorrido.
+    public Movimiento getUltimoMovimiento() {
+        if (historial.isEmpty()) {
+            throw new NoSuchElementException(
+                "El envío #" + id + " no tiene movimientos registrados.");
+        }
+        return historial.get(historial.size() - 1);
+    }
+
+    // Sucursales por las que pasó el envío, en orden de primera pasada y sin
+    // repetir. El cálculo vive acá (no en App): reconstruir el recorrido es
+    // información que sólo el envío conoce.
+    public List<Sucursal> getRecorrido() {
+        List<Sucursal> recorrido = new ArrayList<>();
+        for (Movimiento movimiento : historial) {
+            Sucursal sucursal = movimiento.getSucursal();
+            if (sucursal != null && !recorrido.contains(sucursal)) {
+                recorrido.add(sucursal);
+            }
+        }
+        return List.copyOf(recorrido);
     }
 
     // ── Partes 5 y 7 del TP1: costo delegado en cada subclase ──────────────
@@ -241,22 +281,9 @@ public abstract class Envio {
     public Sucursal getSucursalActual() { return sucursalActual; }
     public List<Paquete> getPaquetes() { return List.copyOf(paquetes); }
 
-    public void mostrarResumen() {
-        System.out.printf(
-            "Envío #%d | Cliente: %-18s | Tipo: %-18s | Destino: %-16s | Origen: %-14s | Paquetes: %d | Estado: %-14s | Costo: $%.2f%n",
-            id,
-            cliente.getNombre(),
-            getClass().getSimpleName(),
-            destino,
-            sucursalOrigen == null ? "(sin procesar)" : sucursalOrigen.getNombre(),
-            paquetes.size(),
-            estado,
-            calcularCosto());
-    }
-
     @Override
     public String toString() {
-        return String.format("Envío #%d hacia %s (%s) - Estado: %s - Costo: $%.2f",
-            id, destino, getClass().getSimpleName(), estado, calcularCosto());
+        return String.format("Envío #%d hacia %s (%s) - Cliente: %s - Estado: %s - Costo: $%.2f",
+            id, destino, getClass().getSimpleName(), cliente.getNombre(), estado, calcularCosto());
     }
 }

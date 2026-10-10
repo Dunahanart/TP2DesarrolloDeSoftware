@@ -66,17 +66,6 @@ public class Sucursal {
         return List.copyOf(enviosEnProceso);
     }
 
-    public void mostrarEnviosEnProceso() {
-        System.out.println("Envíos en proceso en " + this + ":");
-        if (enviosEnProceso.isEmpty()) {
-            System.out.println("  (sin envíos)");
-            return;
-        }
-        for (Envio e : enviosEnProceso) {
-            System.out.println("  " + e);
-        }
-    }
-
     public String getId() { return id; }
     public String getNombre() { return nombre; }
 

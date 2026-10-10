@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Diagramas de Secuencia — Sistema de Gestión de Envíos</title>
+<style>
+  @page { size: A4 portrait; margin: 12mm; }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: #ffffff;
+    color: #111;
+    font-family: "Segoe UI", Arial, Helvetica, sans-serif;
+  }
+
+  .page {
+    width: 100%;
+    padding: 0 0 10mm 0;
+  }
+
+  .page + .page { page-break-before: always; }
+
+  h1 {
+    font-size: 20pt;
+    margin: 0 0 2mm 0;
+    text-align: center;
+  }
+
+  h2 {
+    font-size: 14pt;
+    margin: 0 0 4mm 0;
+    text-align: center;
+  }
+
+  .subtitulo {
+    text-align: center;
+    font-size: 11pt;
+    color: #444;
+    margin: 0 0 5mm 0;
+  }
+
+  .descripcion {
+    font-size: 10.5pt;
+    color: #333;
+    margin: 0 0 5mm 0;
+    text-align: center;
+  }
+
+  /* El escalado del SVG a la hoja se calcula en el script (ver ajustarALaHoja) */
+  .diagrama {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+  }
+
+  .cargando { text-align: center; font-size: 12pt; color: #666; padding: 40mm 0; }
+</style>
+</head>
+<body>
+
+<div class="page">
+  <h1>Diagrama de Secuencia 1</h1>
+  <p class="subtitulo">TP2.1 — Desarrollo de Software · Sistema de Gestión de Envíos y Distribución</p>
+  <p class="descripcion"><strong>Recorrido de un envío:</strong> la sucursal lo recibe y lo despacha; el envío
+    coordina a sus paquetes y registra cada movimiento; al final se entrega en su destino.</p>
+  <div id="diagrama1" class="cargando">Generando diagrama…</div>
+</div>
+
+<div class="page">
+  <h1>Diagrama de Secuencia 2</h1>
+  <p class="subtitulo">TP2.1 — Desarrollo de Software · Sistema de Gestión de Envíos y Distribución</p>
+  <p class="descripcion"><strong>Consulta del seguimiento:</strong> App le pregunta al envío; el envío responde con
+    datos (historial, recorrido, último movimiento) y App los muestra.</p>
+  <div id="diagrama2" class="cargando">Generando diagrama…</div>
+</div>
+
+<script type="module">
+import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+
+const diagrama1 = `sequenceDiagram
+    autonumber
+    participant App
+    participant S as Sucursal Viedma
+    participant E as Envío 1
+    participant P as Paquetes del envío
+    participant M as Movimiento
+
+    Note over App,S: La sucursal recibe el envío
+    App->>S: recibir(envio)
+    S->>S: valida que el envío no esté ya procesado
+    S->>E: recibirEn(sucursal)
+    E->>E: todaviaNoSalio(): etapa REGISTRADO
+    E->>E: avanzarA(EN_PREPARACION)
+    loop por cada paquete del envío
+        E->>P: recibir()
+        P-->>E: RECIBIDO → EN_PREPARACION
+    end
+    E->>M: new Movimiento(RECIBIDO, sucursal)
+    M-->>E: movimiento guardado en el historial
+    E-->>S: ok
+    S->>S: agrega el envío a sus envíos en proceso
+
+    Note over App,S: La sucursal despacha el envío
+    App->>S: despachar(envio)
+    S->>E: despacharDesde(sucursal)
+    E->>E: enPreparacion(): etapa EN_PREPARACION
+    E->>E: avanzarA(EN_VIAJE)
+    loop por cada paquete del envío
+        E->>P: iniciarViaje()
+        P-->>E: EN_PREPARACION → EN_VIAJE
+    end
+    E->>M: new Movimiento(DESPACHADO, sucursal)
+    M-->>E: movimiento guardado en el historial
+    E-->>S: ok
+    S->>S: quita el envío de sus envíos en proceso
+
+    Note over App,E: La entrega ocurre en el destino final (no es una sucursal)
+    App->>E: entregar()
+    E->>E: estaEnViaje(): etapa EN_VIAJE
+    E->>E: avanzarA(ENTREGADO)
+    loop por cada paquete del envío
+        E->>P: entregar()
+        P-->>E: EN_VIAJE → ENTREGADO
+    end
+    E->>M: new Movimiento(ENTREGADO, sin sucursal)
+    M-->>E: movimiento guardado en el historial
+`;
+
+const diagrama2 = `sequenceDiagram
+    autonumber
+    participant App
+    participant E as Envío 1
+    participant H as Historial de Movimientos
+
+    Note over App,H: Consultar el historial completo
+    App->>E: getHistorial()
+    E->>H: copia inmutable de sus movimientos
+    H-->>E: movimientos
+    E-->>App: List de Movimiento
+    App->>App: muestra cada Movimiento
+
+    Note over App,H: Informar por qué sucursales pasó
+    App->>E: getRecorrido()
+    E->>H: recorre sus movimientos
+    H-->>E: movimientos
+    E-->>App: List de Sucursal (sin repetir, en orden)
+    App->>App: muestra las sucursales
+
+    Note over App,H: Obtener el último movimiento
+    App->>E: getUltimoMovimiento()
+    E->>H: toma el último de la lista
+    H-->>E: movimiento
+    E-->>App: Movimiento
+    App->>App: muestra el movimiento
+
+    Note over E: Sin movimientos: NoSuchElementException
+`;
+
+mermaid.initialize({
+  startOnLoad: false,
+  theme: 'neutral',
+  sequence: { useMaxWidth: false },
+  themeVariables: {
+    fontSize: '15px',
+    fontFamily: 'Segoe UI, Arial, sans-serif'
+  }
+});
+
+// Escala cada SVG para que entre exactamente en el área útil de la hoja
+// (A4 vertical: 184 x 220 mm para el diagrama, dejando lugar al título).
+function ajustarALaHoja(svg, maxAnchoMm, maxAltoMm) {
+  if (!svg) return;
+  const pxPorMm = 96 / 25.4;
+  const vb = svg.viewBox && svg.viewBox.baseVal;
+  if (!vb || !vb.width || !vb.height) return;
+  const escala = Math.min((maxAnchoMm * pxPorMm) / vb.width,
+                          (maxAltoMm * pxPorMm) / vb.height);
+  svg.removeAttribute('style');
+  svg.setAttribute('width', Math.round(vb.width * escala));
+  svg.setAttribute('height', Math.round(vb.height * escala));
+}
+
+for (const [id, codigo] of [['diagrama1', diagrama1], ['diagrama2', diagrama2]]) {
+  const contenedor = document.getElementById(id);
+  try {
+    const { svg } = await mermaid.render(id + 'Svg', codigo);
+    contenedor.classList.remove('cargando');
+    contenedor.innerHTML = svg;
+    ajustarALaHoja(contenedor.querySelector('svg'), 184, 220);
+  } catch (err) {
+    contenedor.textContent = 'Error al generar: ' + err.message;
+  }
+}
+document.body.setAttribute('data-listo', '1');
+</script>
+
+</body>
+</html>

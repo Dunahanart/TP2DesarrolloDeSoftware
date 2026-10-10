@@ -35,20 +35,12 @@
     margin: 0 0 6mm 0;
   }
 
-  /* Contenedor que escala el SVG para que entre en la hoja */
+  /* El escalado del SVG a la hoja se calcula en el script (ver ajustarALaHoja) */
   #diagrama {
     display: flex;
     justify-content: center;
     align-items: center;
     width: 100%;
-  }
-
-  #diagrama svg {
-    /* mermaid fija width/height inline; forzamos que respete el escalado */
-    max-width: 100% !important;
-    max-height: 172mm !important;
-    width: auto !important;
-    height: auto !important;
   }
 
   h2 {
@@ -214,7 +206,6 @@ const codigo = `classDiagram
         +Cliente(id, nombre)
         ~registrarEnvio(envio) void
         +getEnvios() List~Envio~
-        +mostrarEnvios() void
     }
 
     class Sucursal {
@@ -225,7 +216,6 @@ const codigo = `classDiagram
         +recibir(envio) void
         +despachar(envio) void
         +getEnviosEnProceso() List~Envio~
-        +mostrarEnviosEnProceso() void
     }
 
     class Movimiento {
@@ -240,6 +230,7 @@ const codigo = `classDiagram
 
     class Envio {
         <<abstract>>
+        -int LIMITE_PAQUETES$ = 3
         -int contadorId$ = 1
         -int id
         -Cliente cliente
@@ -254,12 +245,17 @@ const codigo = `classDiagram
         ~recibirEn(sucursal) void
         ~despacharDesde(sucursal) void
         +entregar() void
-        +mostrarHistorial() void
-        +mostrarRecorrido() void
-        +mostrarUltimoMovimiento() void
         +getHistorial() List~Movimiento~
+        +getRecorrido() List~Sucursal~
+        +getUltimoMovimiento() Movimiento
         +calcularCosto() double
-        +mostrarResumen() void
+        -todaviaNoSalio() boolean
+        -enPreparacion() boolean
+        -estaEnViaje() boolean
+        -estaFinalizado() boolean
+        -hayLugarParaPaquetes() boolean
+        -transicionValida(nuevo) boolean
+        -avanzarA(nuevo) void
         -registrarMovimiento(tipo, sucursal) void
         -validarSucursal(sucursal) void
         #calcularCostoBase() double*
@@ -275,8 +271,6 @@ const codigo = `classDiagram
         +cantidadEnvios() int
         +costoTotal() double
         +costoPromedio() double
-        +mostrarEnvios() void
-        +mostrarResumenGeneral() void
     }
 
     class EnvioEstandar {
@@ -340,23 +334,26 @@ mermaid.initialize({
   }
 });
 
+// Escala el SVG para que entre exactamente en el área útil de la hoja
+// (A4 horizontal: 275 x 155 mm para el diagrama, dejando lugar al título).
+function ajustarALaHoja(svg, maxAnchoMm, maxAltoMm) {
+  if (!svg) return;
+  const pxPorMm = 96 / 25.4;
+  const vb = svg.viewBox && svg.viewBox.baseVal;
+  if (!vb || !vb.width || !vb.height) return;
+  const escala = Math.min((maxAnchoMm * pxPorMm) / vb.width,
+                          (maxAltoMm * pxPorMm) / vb.height);
+  svg.removeAttribute('style');
+  svg.setAttribute('width', Math.round(vb.width * escala));
+  svg.setAttribute('height', Math.round(vb.height * escala));
+}
+
 try {
   const contenedor = document.getElementById('diagrama');
   const { svg } = await mermaid.render('diagramaClases', codigo);
   contenedor.classList.remove('cargando');
   contenedor.innerHTML = svg;
-
-  // Ajuste fino: si tras el CSS el SVG sigue desbordando, escalamos con transform.
-  requestAnimationFrame(() => {
-    const svgEl = contenedor.querySelector('svg');
-    if (!svgEl) return;
-    svgEl.style.maxWidth = '100%';
-    svgEl.style.maxHeight = '172mm';
-    svgEl.removeAttribute('height');
-    svgEl.style.height = 'auto';
-    // Marcamos la página como lista para el PDF.
-    document.body.setAttribute('data-listo', '1');
-  });
+  ajustarALaHoja(contenedor.querySelector('svg'), 275, 155);
   document.body.setAttribute('data-listo', '1');
 } catch (err) {
   document.getElementById('diagrama').textContent = 'Error al generar: ' + err.message;
