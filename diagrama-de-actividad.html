@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Diagrama de Actividad — Sistema de Gestión de Envíos</title>
+<style>
+  @page { size: A4 portrait; margin: 12mm; }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: #ffffff;
+    color: #111;
+    font-family: "Segoe UI", Arial, Helvetica, sans-serif;
+  }
+
+  .page {
+    width: 100%;
+    padding: 0 0 10mm 0;
+  }
+
+  .page + .page { page-break-before: always; }
+
+  h1 {
+    font-size: 20pt;
+    margin: 0 0 2mm 0;
+    text-align: center;
+  }
+
+  h2 {
+    font-size: 14pt;
+    margin: 6mm 0 3mm 0;
+    text-align: center;
+  }
+
+  .subtitulo {
+    text-align: center;
+    font-size: 11pt;
+    color: #444;
+    margin: 0 0 5mm 0;
+  }
+
+  .descripcion {
+    font-size: 10.5pt;
+    color: #333;
+    margin: 0 0 5mm 0;
+    text-align: center;
+  }
+
+  .diagrama {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+  }
+
+  .cargando { text-align: center; font-size: 12pt; color: #666; padding: 40mm 0; }
+
+  p { font-size: 10.5pt; line-height: 1.45; }
+
+  table {
+    border-collapse: collapse;
+    margin: 0 auto;
+    font-size: 10pt;
+    width: 96%;
+  }
+
+  th, td {
+    border: 1px solid #999;
+    padding: 1.4mm 2.5mm;
+    text-align: left;
+    vertical-align: top;
+  }
+
+  th { background: #eef2f6; }
+
+  code {
+    font-family: Consolas, "Courier New", monospace;
+    background: #f4f5f7;
+    padding: 0 1mm;
+  }
+</style>
+</head>
+<body>
+
+<div class="page">
+  <h1>Diagrama de Actividad</h1>
+  <p class="subtitulo">TP2.1 — Leonardo De Filippis y Juan Del Castillo</p>
+  <p class="descripcion"><strong>Ciclo de vida de un envío:</strong> de su creación a la entrega. Cada rectángulo es
+    una acción del sistema, cada rombo una regla de negocio; si la respuesta es "no", la operación termina en una
+    excepción.</p>
+  <div id="diagrama" class="cargando">Generando diagrama…</div>
+</div>
+
+<div class="page">
+  <h2>Definición</h2>
+  <p>El <strong>diagrama de actividad</strong> es un diagrama de UML que representa el <strong>flujo de trabajo</strong>
+    (workflow) de un proceso: qué acciones se realizan, en qué orden, qué decisiones se toman, qué partes se repiten y
+    dónde termina el proceso. Se enfoca en <strong>qué se hace</strong> para lograr una operación: no dice qué objetos
+    participan ni en qué orden reciben los mensajes (eso lo muestra el <em>diagrama de secuencia</em>), ni describe de
+    qué está compuesto el sistema (eso es el <em>diagrama de clases</em>). Se usa cuando interesa seguir un proceso de
+    principio a fin, con alternativas y ciclos, de manera legible para cualquier interesado.</p>
+
+  <h2>Notación</h2>
+  <table>
+    <thead>
+      <tr><th style="width:22%">Símbolo</th><th style="width:33%">Significado</th><th>Uso en este trabajo</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Círculo <code>((Inicio))</code></td><td><strong>Nodo inicial</strong>: comienza la actividad</td><td>Se crea el envío con su cliente</td></tr>
+      <tr><td>Rectángulo</td><td><strong>Acción / actividad</strong>: algo que se hace</td><td>registrar, recibir, despachar, entregar</td></tr>
+      <tr><td>Rombo</td><td><strong>Decisión</strong>: pregunta con ramas alternativas</td><td>¿Tiene paquetes?, ¿puede recibirse?…</td></tr>
+      <tr><td>Flecha</td><td><strong>Flujo de control</strong>: indica el orden</td><td>De una acción a la siguiente o a una decisión</td></tr>
+      <tr><td>Flecha que vuelve atrás</td><td><strong>Ciclo / iteración</strong>: la acción se repite</td><td>¿Pasa por otra sucursal? → sí → se repite</td></tr>
+      <tr><td>Círculo <code>((Fin))</code></td><td><strong>Nodo final</strong>: termina el proceso</td><td>Envío entregado / operación impedida</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Correspondencia con el código</h2>
+  <table>
+    <thead>
+      <tr><th style="width:40%">Actividad del diagrama</th><th>Operación en el código</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Se crea el envío</td><td><code>new EnvioEstandar(cliente, destino, paquetes...)</code></td></tr>
+      <tr><td>¿Puede registrarse?</td><td><code>GestorEnvios.registrar()</code> — rechaza envíos sin paquetes</td></tr>
+      <tr><td>¿Puede recibirse?</td><td><code>Envio.recibirEn()</code> — sólo REGISTRADO o EN_VIAJE (tránsito)</td></tr>
+      <tr><td>Recibir</td><td><code>Sucursal.recibir()</code> → <code>Envio.recibirEn()</code> → <code>Paquete.recibir()</code></td></tr>
+      <tr><td>¿Puede despacharse?</td><td><code>Envio.despacharDesde()</code> — sólo EN_PREPARACION o EN_VIAJE</td></tr>
+      <tr><td>Despachar</td><td><code>Sucursal.despachar()</code> → <code>Envio.despacharDesde()</code> → <code>Paquete.iniciarViaje()</code></td></tr>
+      <tr><td>Ciclo de sucursales</td><td>sucursales intermedias: mismo flujo, el estado sigue EN_VIAJE</td></tr>
+      <tr><td>¿Puede entregarse?</td><td><code>Envio.entregar()</code> — exige etapa EN_VIAJE</td></tr>
+      <tr><td>Entregar</td><td><code>Envio.entregar()</code> → <code>Paquete.entregar()</code> + <code>Movimiento(ENTREGADO)</code></td></tr>
+      <tr><td>Operación impedida</td><td>excepción <code>IllegalStateException</code> / <code>NoSuchElementException</code></td></tr>
+    </tbody>
+  </table>
+</div>
+
+<script type="module">
+import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+
+const codigo = `flowchart TD
+    S((Inicio))
+    A[Se crea el Envío con su cliente y paquetes<br/>estado: REGISTRADO]
+    B{¿Puede registrarse?<br/>tiene paquetes}
+    C[GestorEnvios.registrar el envío]
+    D{¿Puede recibirse?<br/>etapa REGISTRADO o EN_VIAJE}
+    E[Sucursal.recibir a Envio.recibirEn<br/>Paquete.recibir + Movimiento RECIBIDO]
+    F{¿Puede despacharse?<br/>etapa EN_PREPARACION}
+    G[Sucursal.despachar a Envio.despacharDesde<br/>Paquete.iniciarViaje + Movimiento DESPACHADO]
+    H{¿Pasa por otra<br/>sucursal?}
+    I[La sucursal intermedia lo recibe y lo despacha<br/>sigue EN_VIAJE: sólo registra movimientos]
+    J{¿Puede entregarse?<br/>etapa EN_VIAJE}
+    K[Envio.entregar en el destino final<br/>Paquete.entregar + Movimiento ENTREGADO]
+    X[Operación impedida<br/>IllegalStateException]
+    Z((Fin))
+
+    S --> A
+    A --> B
+    B -- No --> X
+    B -- Sí --> C
+    C --> D
+    D -- No --> X
+    D -- Sí --> E
+    E --> F
+    F -- No --> X
+    F -- Sí --> G
+    G --> H
+    H -- Sí --> I
+    I --> H
+    H -- No --> J
+    J -- No --> X
+    J -- Sí --> K
+    K --> Z
+
+    style S fill:#111,stroke:#111,color:#fff
+    style Z fill:#fff,stroke:#111,stroke-width:3px,color:#111
+    style X fill:#fdecec,stroke:#b00000,stroke-width:2.5px,color:#800000
+`;
+
+mermaid.initialize({
+  startOnLoad: false,
+  theme: 'neutral',
+  flowchart: {
+    useMaxWidth: false,
+    curve: 'linear',
+    nodeSpacing: 38,
+    rankSpacing: 42,
+    padding: 6
+  },
+  themeVariables: {
+    fontSize: '17px',
+    fontFamily: 'Segoe UI, Arial, sans-serif'
+  }
+});
+
+// Escala el SVG para que entre exactamente en el área útil de la hoja
+// (A4 vertical: 184 x 215 mm para el diagrama, dejando lugar al título).
+function ajustarALaHoja(svg, maxAnchoMm, maxAltoMm) {
+  if (!svg) return;
+  const pxPorMm = 96 / 25.4;
+  const vb = svg.viewBox && svg.viewBox.baseVal;
+  if (!vb || !vb.width || !vb.height) return;
+  const escala = Math.min((maxAnchoMm * pxPorMm) / vb.width,
+                          (maxAltoMm * pxPorMm) / vb.height);
+  svg.removeAttribute('style');
+  svg.setAttribute('width', Math.round(vb.width * escala));
+  svg.setAttribute('height', Math.round(vb.height * escala));
+}
+
+try {
+  const contenedor = document.getElementById('diagrama');
+  const { svg } = await mermaid.render('diagramaActividad', codigo);
+  contenedor.classList.remove('cargando');
+  contenedor.innerHTML = svg;
+  ajustarALaHoja(contenedor.querySelector('svg'), 184, 218);
+  document.body.setAttribute('data-listo', '1');
+} catch (err) {
+  document.getElementById('diagrama').textContent = 'Error al generar: ' + err.message;
+  document.body.setAttribute('data-listo', '1');
+}
+</script>
+
+</body>
+</html>
