@@ -49,6 +49,15 @@ public abstract class Envio {
             agregarPaquete(paquete);
         }
 
+        // TP4: la regla "un envío necesita al menos un paquete" vive acá, en el
+        // propio envío. El RegistroCentral sólo guarda y busca: no valida reglas
+        // del negocio. Se chequea antes de registrarse en el cliente para no
+        // dejar rastro de un envío que nunca llegó a existir.
+        if (this.paquetes.isEmpty()) {
+            throw new IllegalStateException(
+                "No se puede crear un envío sin paquetes (envío #" + id + ").");
+        }
+
         // ¿Quién registra que el cliente realizó un envío? El propio envío, al
         // crearse: es el que conoce a su cliente y a sí mismo. Así App nunca
         // toca la lista de envíos del cliente (Tell, don't ask + Creator).
@@ -125,7 +134,7 @@ public abstract class Envio {
     //
     // Cadena de colaboración (TP2):
     //
-    //     App --> Sucursal.recibir(envio) --> Envio.recibirEn(sucursal) --> Paquete.recibir()
+    //     App --> Sucursal.recibirEnvio(envio) --> Envio.recibirEn(sucursal) --> Paquete.recibir()
     //
     // Estos métodos son package-private: fuera del modelo nadie debería poder
     // mover un envío por su recorrido. Sólo la sucursal que lo procesa (y

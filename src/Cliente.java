@@ -4,6 +4,9 @@ import java.util.List;
 // Quién solicita los envíos. Un cliente puede realizar varios envíos a lo largo
 // del tiempo, y el sistema debe poder responder "qué envíos tiene este cliente".
 //
+// TP4: el DNI identifica al cliente. Es el dato con el que el RegistroCentral
+// lo busca dentro de su lista (búsqueda secuencial, Parte 4.a).
+//
 // Responsabilidad: el cliente CONOCE y ADMINISTRA su propia historia de envíos.
 // La lista es privada y solo se completa por dentro (ver registrarEnvio), nunca
 // porque un objeto externo haga cliente.getEnvios().add(...).
@@ -11,23 +14,28 @@ public class Cliente {
 
     private final String id;
     private final String nombre;
+    private final int dni;
     private final List<Envio> envios;
 
-    public Cliente(String id, String nombre) {
+    public Cliente(String id, String nombre, int dni) {
         if (id == null || id.isBlank()) {
             throw new IllegalArgumentException("El cliente necesita un id.");
         }
         if (nombre == null || nombre.isBlank()) {
             throw new IllegalArgumentException("El cliente necesita un nombre.");
         }
+        if (dni <= 0) {
+            throw new IllegalArgumentException("El cliente necesita un DNI válido.");
+        }
         this.id = id;
         this.nombre = nombre;
+        this.dni = dni;
         this.envios = new ArrayList<>();
     }
 
     // ¿Quién se entera de que el cliente realizó un envío? El propio Envio, al
     // crearse (ver su constructor). Este método es package-private porque nadie
-    // más debería usarlo: ni App ni el GestorEnvios registran envíos a mano.
+    // más debería usarlo: ni App ni el RegistroCentral registran envíos a mano.
     //
     // La validación de "¿este envío realmente me pertenece?" garantiza que la
     // lista nunca se desincronice de la relación cliente <-> envío.
@@ -50,9 +58,10 @@ public class Cliente {
 
     public String getId() { return id; }
     public String getNombre() { return nombre; }
+    public int getDni() { return dni; }
 
     @Override
     public String toString() {
-        return nombre + " (" + id + ")";
+        return nombre + " (" + id + ") - DNI: " + dni;
     }
 }
